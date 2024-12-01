@@ -36,6 +36,7 @@ var sensitivity = 1; // Default sensitivity value
 var rSensitivity = 1; // Default red sensitivity value
 var gSensitivity = 1; // Default green sensitivity value
 var bSensitivity = 1; // Default blue sensitivity value
+var colorPower = 1; // Default color power value
 
 // Default frequency range values
 var bassCenterFreq = 100;
@@ -393,17 +394,25 @@ function lightsMusicClick() {
 
     const energies = getWeightedEnergy();
     
-    // Apply sensitivity and smoothing
-    const smoothingFactor = 0.8;
+    // Calculate total amplitude (sum of all energies)
+    const totalAmplitude = energies.bass + energies.mid + energies.high;
+    
+    // Calculate relative proportions with power adjustment
+    const bassRatio = Math.pow(energies.bass * rSensitivity, colorPower);
+    const midRatio = Math.pow(energies.mid * gSensitivity, colorPower);
+    const highRatio = Math.pow(energies.high * bSensitivity, colorPower);
+    const totalRatio = bassRatio + midRatio + highRatio;
+
+    // Calculate final colors maintaining total brightness but adjusted proportions
     const targetColors = [
-      Math.round(energies.bass * rSensitivity),
-      Math.round(energies.mid * gSensitivity),
-      Math.round(energies.high * bSensitivity)
+      totalRatio > 0 ? Math.round((bassRatio / totalRatio) * totalAmplitude) : 0,
+      totalRatio > 0 ? Math.round((midRatio / totalRatio) * totalAmplitude) : 0,
+      totalRatio > 0 ? Math.round((highRatio / totalRatio) * totalAmplitude) : 0
     ];
 
     // Smooth the transition
     lastColors = lastColors.map((last, i) => {
-      return Math.round(last * smoothingFactor + targetColors[i] * (1 - smoothingFactor));
+      return Math.round(last * 0.8 + targetColors[i] * 0.2);
     });
 
     // Ensure values are within valid range
@@ -427,7 +436,7 @@ function eventListener() {
   window.addEventListener('open', console.log);
 }
 
-var variables = `var retry = false; var CHARACTERISTIC_READ_UUID = "${CHARACTERISTIC_READ_UUID}";var CHARACTERISTIC_WRITE_UUID = "${CHARACTERISTIC_WRITE_UUID}";var CHARACTERISTIC_NOTIFY_UUID = "${CHARACTERISTIC_NOTIFY_UUID}"; var SERVICE_UUID = "${SERVICE_UUID}"; var LIGHTS_ON_STRING = "${LIGHTS_ON_STRING}";var LIGHTS_OFF_STRING = "${LIGHTS_OFF_STRING}"; var testingMode = ${testingMode}; var sensitivity = ${sensitivity}; var rSensitivity = ${rSensitivity}; var gSensitivity = ${gSensitivity}; var bSensitivity = ${bSensitivity}; var bassCenterFreq = ${bassCenterFreq}; var bassWidth = ${bassWidth}; var midCenterFreq = ${midCenterFreq}; var midWidth = ${midWidth}; var highCenterFreq = ${highCenterFreq}; var highWidth = ${highWidth}; ${updateColorBox.toString()};`;
+var variables = `var retry = false; var CHARACTERISTIC_READ_UUID = "${CHARACTERISTIC_READ_UUID}";var CHARACTERISTIC_WRITE_UUID = "${CHARACTERISTIC_WRITE_UUID}";var CHARACTERISTIC_NOTIFY_UUID = "${CHARACTERISTIC_NOTIFY_UUID}"; var SERVICE_UUID = "${SERVICE_UUID}"; var LIGHTS_ON_STRING = "${LIGHTS_ON_STRING}";var LIGHTS_OFF_STRING = "${LIGHTS_OFF_STRING}"; var testingMode = ${testingMode}; var sensitivity = ${sensitivity}; var rSensitivity = ${rSensitivity}; var gSensitivity = ${gSensitivity}; var bSensitivity = ${bSensitivity}; var colorPower = ${colorPower}; var bassCenterFreq = ${bassCenterFreq}; var bassWidth = ${bassWidth}; var midCenterFreq = ${midCenterFreq}; var midWidth = ${midWidth}; var highCenterFreq = ${highCenterFreq}; var highWidth = ${highWidth}; ${updateColorBox.toString()};`;
 
 var formHtml = "<form onsubmit=\"return false\">" +
   "<button id=\"lightsON\" style=\"width:50vw;height:5vh;margin-bottom:5vh;\" onclick=\"lightsOnClick()\">Lights ON</button>" +
@@ -451,6 +460,10 @@ var formHtml = "<form onsubmit=\"return false\">" +
   "<div style='margin: 10px 0;'>" +
     "<label for='bSensitivity'>Blue Sensitivity: <span id='bSensitivityValue'>1</span></label>" +
     "<input type='range' id='bSensitivity' min='0.25' max='4' value='1' step='0.05' onchange='updateBSensitivity(this.value)'>" +
+  "</div>" +
+  "<div style='margin: 10px 0;'>" +
+    "<label for='colorPower'>Color Power: <span id='colorPowerValue'>1</span></label>" +
+    "<input type='range' id='colorPower' min='1' max='5' value='1' step='0.2' onchange='updateColorPower(this.value)'>" +
   "</div>" +
   "<div style='margin: 10px 0;'>" +
     "<label for='bassCenterFreq'>Bass Center Frequency: <span id='bassCenterFreqValue'>100</span> Hz</label>" +
@@ -487,6 +500,7 @@ var formHtml = "<form onsubmit=\"return false\">" +
 "function updateRSensitivity(value) { rSensitivity = value; document.getElementById('rSensitivityValue').textContent = value; insertLog('Red Sensitivity set to: ' + value); };" + 
 "function updateGSensitivity(value) { gSensitivity = value; document.getElementById('gSensitivityValue').textContent = value; insertLog('Green Sensitivity set to: ' + value); };" + 
 "function updateBSensitivity(value) { bSensitivity = value; document.getElementById('bSensitivityValue').textContent = value; insertLog('Blue Sensitivity set to: ' + value); };" +
+"function updateColorPower(value) { colorPower = Number(value); document.getElementById('colorPowerValue').textContent = value; insertLog('Color Power set to: ' + value); };" +
 "function updateBassCenterFreq(value) { bassCenterFreq = Number(value); document.getElementById('bassCenterFreqValue').textContent = value; insertLog('Bass Center Frequency set to: ' + value + ' Hz'); };" +
 "function updateBassWidth(value) { bassWidth = Number(value); document.getElementById('bassWidthValue').textContent = value; insertLog('Bass Width set to: ' + value + ' Hz'); };" +
 "function updateMidCenterFreq(value) { midCenterFreq = Number(value); document.getElementById('midCenterFreqValue').textContent = value; insertLog('Mid Center Frequency set to: ' + value + ' Hz'); };" +

@@ -33,10 +33,24 @@ var LIGHTS_OFF_STRING = "5B0F00B5";
 
 var testingMode = true; // New variable to toggle testing mode
 var sensitivity = 1; // Default sensitivity value
+var rSensitivity = 1; // Default red sensitivity value
+var gSensitivity = 1; // Default green sensitivity value
+var bSensitivity = 1; // Default blue sensitivity value
+
+// Default frequency range values
+var bassCenterFreq = 100;
+var bassWidth = 300;
+var midCenterFreq = 1000;
+var midWidth = 2000;
+var highCenterFreq = 4000;
+var highWidth = 5000;
 
 function updateColorBox(r, g, b) {
   const colorBox = document.getElementById("colorBox");
   colorBox.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+  document.getElementById("redBox").style.backgroundColor = `rgb(${r}, 0, 0)`; // Update red box
+  document.getElementById("greenBox").style.backgroundColor = `rgb(0, ${g}, 0)`; // Update green box
+  document.getElementById("blueBox").style.backgroundColor = `rgb(0, 0, ${b})`; // Update blue box
 }
 
 function insertLog(msg){
@@ -295,6 +309,7 @@ function lightsMusicClick() {
   let analyser;
   let microphone;
   let isListening = false;
+  let lastColors = [0, 0, 0]; // Store last RGB values for smooth transitions
 
   async function startListening() {
     if (!isListening) {
@@ -305,7 +320,7 @@ function lightsMusicClick() {
         }
 
         analyser = audioContext.createAnalyser();
-        analyser.fftSize = 256;
+        analyser.fftSize = 2048; // Increased for better frequency resolution
         
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         microphone = audioContext.createMediaStreamSource(stream);
@@ -327,14 +342,76 @@ function lightsMusicClick() {
     const dataArray = new Uint8Array(bufferLength);
     analyser.getByteFrequencyData(dataArray);
 
-    // Calculate total energy
-    const currentEnergy = dataArray.reduce((sum, value) => sum + value, 0);
-    const normalizedEnergy = Math.min(currentEnergy / (255 * bufferLength * sensitivity), 1); // Normalize to [0, 1]
+    // Define frequency ranges with overlap (in Hz)
+    const frequencyRanges = {
+      bass: { center: bassCenterFreq, width: bassWidth },
+      mid: { center: midCenterFreq, width: midWidth },
+      high: { center: highCenterFreq, width: highWidth }
+    };
 
-    // Set color based on energy
-    const colorValue = Math.round(normalizedEnergy * 255);
-    onButtonClick(getColorCommand(colorValue, colorValue, colorValue, 100));
-    updateColorBox(colorValue, colorValue, colorValue); // Set RGB to the same value for grayscale
+    // Helper function to calculate gaussian weight
+    function gaussianWeight(freq, center, width) {
+      return Math.exp(-Math.pow(freq - center, 2) / (2 * Math.pow(width, 2)));
+    }
+
+    // Calculate weighted energy across spectrum
+    function getWeightedEnergy() {
+      const sampleRate = audioContext.sampleRate;
+      const binSize = sampleRate / analyser.fftSize;
+      let bassEnergy = 0;
+      let midEnergy = 0;
+      let highEnergy = 0;
+      let bassWeight = 0;
+      let midWeight = 0;
+      let highWeight = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const frequency = i * binSize;
+        // Calculate weights for each frequency band
+        const bWeight = gaussianWeight(frequency, frequencyRanges.bass.center, frequencyRanges.bass.width);
+        const mWeight = gaussianWeight(frequency, frequencyRanges.mid.center, frequencyRanges.mid.width);
+        const hWeight = gaussianWeight(frequency, frequencyRanges.high.center, frequencyRanges.high.width);
+
+        // Accumulate weighted energies
+        bassEnergy += dataArray[i] * bWeight;
+        midEnergy += dataArray[i] * mWeight;
+        highEnergy += dataArray[i] * hWeight;
+
+        // Accumulate weights for normalization
+        bassWeight += bWeight;
+        midWeight += mWeight;
+        highWeight += hWeight;
+      }
+
+      // Normalize the energies
+      return {
+        bass: bassWeight > 0 ? bassEnergy / bassWeight : 0,
+        mid: midWeight > 0 ? midEnergy / midWeight : 0,
+        high: highWeight > 0 ? highEnergy / highWeight : 0
+      };
+    }
+
+    const energies = getWeightedEnergy();
+    
+    // Apply sensitivity and smoothing
+    const smoothingFactor = 0.8;
+    const targetColors = [
+      Math.round(energies.bass * rSensitivity),
+      Math.round(energies.mid * gSensitivity),
+      Math.round(energies.high * bSensitivity)
+    ];
+
+    // Smooth the transition
+    lastColors = lastColors.map((last, i) => {
+      return Math.round(last * smoothingFactor + targetColors[i] * (1 - smoothingFactor));
+    });
+
+    // Ensure values are within valid range
+    const finalColors = lastColors.map(v => Math.min(255, Math.max(0, v)));
+
+    // Update lights and color box
+    onButtonClick(getColorCommand(finalColors[0], finalColors[1], finalColors[2], 100));
+    updateColorBox(finalColors[0], finalColors[1], finalColors[2]);
 
     requestAnimationFrame(updateColorBasedOnMusic);
   }
@@ -350,7 +427,7 @@ function eventListener() {
   window.addEventListener('open', console.log);
 }
 
-var variables = `var retry = false; var CHARACTERISTIC_READ_UUID = "${CHARACTERISTIC_READ_UUID}";var CHARACTERISTIC_WRITE_UUID = "${CHARACTERISTIC_WRITE_UUID}";var CHARACTERISTIC_NOTIFY_UUID = "${CHARACTERISTIC_NOTIFY_UUID}"; var SERVICE_UUID = "${SERVICE_UUID}"; var LIGHTS_ON_STRING = "${LIGHTS_ON_STRING}";var LIGHTS_OFF_STRING = "${LIGHTS_OFF_STRING}"; var testingMode = ${testingMode}; var sensitivity = ${sensitivity}; ${updateColorBox.toString()};`;
+var variables = `var retry = false; var CHARACTERISTIC_READ_UUID = "${CHARACTERISTIC_READ_UUID}";var CHARACTERISTIC_WRITE_UUID = "${CHARACTERISTIC_WRITE_UUID}";var CHARACTERISTIC_NOTIFY_UUID = "${CHARACTERISTIC_NOTIFY_UUID}"; var SERVICE_UUID = "${SERVICE_UUID}"; var LIGHTS_ON_STRING = "${LIGHTS_ON_STRING}";var LIGHTS_OFF_STRING = "${LIGHTS_OFF_STRING}"; var testingMode = ${testingMode}; var sensitivity = ${sensitivity}; var rSensitivity = ${rSensitivity}; var gSensitivity = ${gSensitivity}; var bSensitivity = ${bSensitivity}; var bassCenterFreq = ${bassCenterFreq}; var bassWidth = ${bassWidth}; var midCenterFreq = ${midCenterFreq}; var midWidth = ${midWidth}; var highCenterFreq = ${highCenterFreq}; var highWidth = ${highWidth}; ${updateColorBox.toString()};`;
 
 var formHtml = "<form onsubmit=\"return false\">" +
   "<button id=\"lightsON\" style=\"width:50vw;height:5vh;margin-bottom:5vh;\" onclick=\"lightsOnClick()\">Lights ON</button>" +
@@ -358,12 +435,65 @@ var formHtml = "<form onsubmit=\"return false\">" +
   "<button id=\"lightsRED\" style=\"width:50vw;height:5vh;\" onclick=\"lightsRedClick()\">Lights RED</button>" +
   "<button id=\"lightsGradient\" style=\"width:50vw;height:5vh;\" onclick=\"lightsGradientClick()\">Lights Gradient</button>" +
   "<button id=\"lightsMusic\" style=\"width:50vw;height:5vh;\" onclick=\"lightsMusicClick()\">Listen to Music</button>" +
-  "<button id=\"toggleTesting\" style=\"width:50vw;height:5vh;\" onclick=\"toggleTestingMode()\">Toggle Testing Mode</button>" + // Button to toggle testing mode
-  "<label for='sensitivity'>Sound Sensitivity:</label>" +
-  "<input type='range' id='sensitivity' min='0.25' max='4' value='1' step='0.05' onchange='updateSensitivity(this.value)'>" + // Slider for sensitivity
+  "<button id=\"toggleTesting\" style=\"width:50vw;height:5vh;\" onclick=\"toggleTestingMode()\">Toggle Testing Mode</button>" +
+  "<div style='margin: 10px 0;'>" +
+    "<label for='sensitivity'>Sound Sensitivity: <span id='sensitivityValue'>1</span></label>" +
+    "<input type='range' id='sensitivity' min='0.25' max='4' value='1' step='0.05' onchange='updateSensitivity(this.value)'>" +
+  "</div>" +
+  "<div style='margin: 10px 0;'>" +
+    "<label for='rSensitivity'>Red Sensitivity: <span id='rSensitivityValue'>1</span></label>" +
+    "<input type='range' id='rSensitivity' min='0.25' max='4' value='1' step='0.05' onchange='updateRSensitivity(this.value)'>" +
+  "</div>" +
+  "<div style='margin: 10px 0;'>" +
+    "<label for='gSensitivity'>Green Sensitivity: <span id='gSensitivityValue'>1</span></label>" +
+    "<input type='range' id='gSensitivity' min='0.25' max='4' value='1' step='0.05' onchange='updateGSensitivity(this.value)'>" +
+  "</div>" +
+  "<div style='margin: 10px 0;'>" +
+    "<label for='bSensitivity'>Blue Sensitivity: <span id='bSensitivityValue'>1</span></label>" +
+    "<input type='range' id='bSensitivity' min='0.25' max='4' value='1' step='0.05' onchange='updateBSensitivity(this.value)'>" +
+  "</div>" +
+  "<div style='margin: 10px 0;'>" +
+    "<label for='bassCenterFreq'>Bass Center Frequency: <span id='bassCenterFreqValue'>100</span> Hz</label>" +
+    "<input type='range' id='bassCenterFreq' min='20' max='500' value='100' step='10' onchange='updateBassCenterFreq(this.value)'>" +
+  "</div>" +
+  "<div style='margin: 10px 0;'>" +
+    "<label for='bassWidth'>Bass Width: <span id='bassWidthValue'>300</span> Hz</label>" +
+    "<input type='range' id='bassWidth' min='50' max='1000' value='300' step='50' onchange='updateBassWidth(this.value)'>" +
+  "</div>" +
+  "<div style='margin: 10px 0;'>" +
+    "<label for='midCenterFreq'>Mid Center Frequency: <span id='midCenterFreqValue'>1000</span> Hz</label>" +
+    "<input type='range' id='midCenterFreq' min='200' max='2000' value='1000' step='100' onchange='updateMidCenterFreq(this.value)'>" +
+  "</div>" +
+  "<div style='margin: 10px 0;'>" +
+    "<label for='midWidth'>Mid Width: <span id='midWidthValue'>2000</span> Hz</label>" +
+    "<input type='range' id='midWidth' min='200' max='4000' value='2000' step='100' onchange='updateMidWidth(this.value)'>" +
+  "</div>" +
+  "<div style='margin: 10px 0;'>" +
+    "<label for='highCenterFreq'>High Center Frequency: <span id='highCenterFreqValue'>4000</span> Hz</label>" +
+    "<input type='range' id='highCenterFreq' min='1000' max='8000' value='4000' step='200' onchange='updateHighCenterFreq(this.value)'>" +
+  "</div>" +
+  "<div style='margin: 10px 0;'>" +
+    "<label for='highWidth'>High Width: <span id='highWidthValue'>5000</span> Hz</label>" +
+    "<input type='range' id='highWidth' min='400' max='10000' value='5000' step='200' onchange='updateHighWidth(this.value)'>" +
+  "</div>" +
 "</form>" +
-"<div id=\"colorBox\" style=\"width: 100px; height: 100px; border: 1px solid black;\"></div>" + // Color box added
-"<script>" + hexStr2Bytes.toString() + byteToUint8Array.toString() + variables + lightsOffClick.toString() + lightsOnClick.toString() + lightsRedClick.toString() + lightsGradientClick.toString() + lightsMusicClick.toString() + getColorCommand.toString() + getHex.toString() + onButtonClick.toString() + insertLog.toString() + "function toggleTestingMode() { testingMode = !testingMode; insertLog('Testing mode: ' + (testingMode ? 'ON' : 'OFF')); };" + "function updateSensitivity(value) { sensitivity = value; insertLog('Sensitivity set to: ' + value); };" + eventListener.toString() + ";eventListener();</script>";
+"<div id=\"colorBox\" style=\"width: 100px; height: 100px; border: 1px solid black;\"></div>" +
+"<div id=\"redBox\" style=\"width: 100px; height: 100px; border: 1px solid black;\"></div>" +
+"<div id=\"greenBox\" style=\"width: 100px; height: 100px; border: 1px solid black;\"></div>" +
+"<div id=\"blueBox\" style=\"width: 100px; height: 100px; border: 1px solid black;\"></div>" +
+"<script>" + hexStr2Bytes.toString() + byteToUint8Array.toString() + variables + lightsOffClick.toString() + lightsOnClick.toString() + lightsRedClick.toString() + lightsGradientClick.toString() + lightsMusicClick.toString() + getColorCommand.toString() + getHex.toString() + onButtonClick.toString() + insertLog.toString() + 
+"function toggleTestingMode() { testingMode = !testingMode; insertLog('Testing mode: ' + (testingMode ? 'ON' : 'OFF')); };" + 
+"function updateSensitivity(value) { sensitivity = value; document.getElementById('sensitivityValue').textContent = value; insertLog('Sensitivity set to: ' + value); };" + 
+"function updateRSensitivity(value) { rSensitivity = value; document.getElementById('rSensitivityValue').textContent = value; insertLog('Red Sensitivity set to: ' + value); };" + 
+"function updateGSensitivity(value) { gSensitivity = value; document.getElementById('gSensitivityValue').textContent = value; insertLog('Green Sensitivity set to: ' + value); };" + 
+"function updateBSensitivity(value) { bSensitivity = value; document.getElementById('bSensitivityValue').textContent = value; insertLog('Blue Sensitivity set to: ' + value); };" +
+"function updateBassCenterFreq(value) { bassCenterFreq = Number(value); document.getElementById('bassCenterFreqValue').textContent = value; insertLog('Bass Center Frequency set to: ' + value + ' Hz'); };" +
+"function updateBassWidth(value) { bassWidth = Number(value); document.getElementById('bassWidthValue').textContent = value; insertLog('Bass Width set to: ' + value + ' Hz'); };" +
+"function updateMidCenterFreq(value) { midCenterFreq = Number(value); document.getElementById('midCenterFreqValue').textContent = value; insertLog('Mid Center Frequency set to: ' + value + ' Hz'); };" +
+"function updateMidWidth(value) { midWidth = Number(value); document.getElementById('midWidthValue').textContent = value; insertLog('Mid Width set to: ' + value + ' Hz'); };" +
+"function updateHighCenterFreq(value) { highCenterFreq = Number(value); document.getElementById('highCenterFreqValue').textContent = value; insertLog('High Center Frequency set to: ' + value + ' Hz'); };" +
+"function updateHighWidth(value) { highWidth = Number(value); document.getElementById('highWidthValue').textContent = value; insertLog('High Width set to: ' + value + ' Hz'); };" +
+eventListener.toString() + ";eventListener();</script>";
 
 var outputHtml = "<div id=\"output\" class=\"output\">" +
   "<div id=\"content\"></div>" +

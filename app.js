@@ -4,7 +4,7 @@ const https = require('https');
 const fs = require('fs');
 const os = require('os');
 
-var chromeUserDataDir = "C:\\Users\\Jay\\AppData\\Local\\Google\\Chrome\\User Data\\Default";
+var chromeUserDataDir = "/Users/elliott/Library/Application Support/Google/Chrome/Default";
 
 var jsonParser = bodyParser.json()
 
@@ -16,8 +16,8 @@ var chrome = require("selenium-webdriver/chrome");
 const app = express()
 const port = 3000
 
-var key = fs.readFileSync(__dirname + '\\selfsigned.key');
-var cert = fs.readFileSync(__dirname + '\\selfsigned.crt');
+var key = fs.readFileSync(__dirname + '/selfsigned.key');
+var cert = fs.readFileSync(__dirname + '/selfsigned.crt');
 var options = {
   key: key,
   cert: cert
@@ -152,7 +152,7 @@ function onButtonClick(command) {
     insertLog('getDevices found');
     device = navigator.bluetooth.getDevices().then(devices => {
       for(let device of devices) {
-        if (device.name == 'KS03~791C47') {
+        if (device.name == 'KS03~430052') {
           insertLog('Device: ' + device.name);
           insertLog('Device id: ' + device.id);
           return Promise.resolve(device);
@@ -174,30 +174,80 @@ function onButtonClick(command) {
   } else {
     insertLog('getDevices not found');
   }
+  function handleLightStatus(value) {
+    if (value instanceof DataView) {
+      // Convert DataView to an array of bytes
+      const byteArray = new Uint8Array(value.buffer);
+      insertLog('Received status bytes: ' + Array.from(byteArray).join(', '));
+  
+      // Example: Check the first byte to see if the light status is on or off
+      if (byteArray[0] === 0x01) {
+        insertLog('Light is ON');
+      } else if (byteArray[0] === 0x00) {
+        insertLog('Light is OFF');
+      } else {
+        insertLog('Unknown light status');
+      }
+    } else {
+      insertLog('Received unexpected value: ' + value);
+    }
+  }
 
   function write(server) {
     var onError = function(error) {
       insertLog('Internal! ' + error);
-      server.disconnect();
-    }
-    insertLog(server);
+      // server.disconnect();  // Optional: Disconnect if there's an error
+    };
+  
     insertLog('> Connected:        ' + server.connected);
     insertLog('Getting Services...');
-    server.getPrimaryService(SERVICE_UUID).then(service => {
-      insertLog('Getting Characteristics...');
-      return service.getCharacteristic(CHARACTERISTIC_WRITE_UUID);
-    }, onError).then(characteristic => {
-      var bytecommand = byteToUint8Array(hexStr2Bytes(command));
-      characteristic.writeValueWithoutResponse(bytecommand).then(() => {
-        if (command == LIGHTS_ON_STRING) {
-          insertLog('lightsON');
-        } else if (command == LIGHTS_OFF_STRING) {
-          insertLog('lightsOFF');
+  
+    server.getPrimaryService(SERVICE_UUID)
+      .then(service => {
+        insertLog('Found Service: ' + service.uuid);
+        return service.getCharacteristics();
+      })
+      .then(characteristics => {
+        insertLog('Characteristics found:');
+        characteristics.forEach(characteristic => {
+          insertLog('  ' + characteristic.uuid);
+        });
+  
+        const writeCharacteristic = characteristics.find(c => c.uuid === CHARACTERISTIC_WRITE_UUID);
+        if (!writeCharacteristic) {
+          throw new Error('Write characteristic not found!');
         }
-        server.disconnect();
-      }, onError);
-    }, onError);
+        insertLog('Found write characteristic: ' + writeCharacteristic.uuid);
+  
+        var bytecommand = byteToUint8Array(hexStr2Bytes(command));
+        insertLog('Sending command: ' + bytecommand);
+        return writeCharacteristic.writeValueWithoutResponse(bytecommand);
+      })
+      .then(() => {
+        insertLog('Command sent: ' + command);
+        return new Promise(resolve => setTimeout(resolve, 0));  // 500 ms delay
+      })
+      .then(() => {
+        insertLog('Checking if lights changed...');
+        server.getPrimaryService(SERVICE_UUID)
+          .then(service => service.getCharacteristic(CHARACTERISTIC_READ_UUID))
+          .then(characteristic => characteristic.readValue())
+          .then(value => {
+            handleLightStatus(value);  // Call the function to handle the light status
+          })
+          .catch(onError);
+      })
+      .then(() => {
+        insertLog('Disconnecting...');
+        // server.disconnect();  // Optional: Disconnect if needed
+      })
+      .catch(onError); 
   }
+  
+  
+  
+  
+  
 }
 
 function lightsOnClick() {
@@ -212,8 +262,29 @@ function lightsRedClick() {
   onButtonClick(getColorCommand(255, 0, 0, 100));
 }
 
-function lightsSoftWhiteClick() {
-  onButtonClick(getColorCommand(224, 75, 22, 100));
+function lightsGradientClick() {
+let brightness = 100; // Set brightness level
+let hue = 0; // Initialize hue
+
+function cycleThroughHues() {
+  // Convert hue to RGB
+  const r = Math.round(Math.sin(hue + 0) * 127 + 128);
+  const g = Math.round(Math.sin(hue + 2) * 127 + 128);
+  const b = Math.round(Math.sin(hue + 4) * 127 + 128);
+  
+  // Send the color command
+  onButtonClick(getColorCommand(r, g, b, brightness));
+  
+  // Increment hue for the next color
+  hue += 0.05; // Adjust the increment for speed of cycling
+  
+  // Call this function again after a delay
+  setTimeout(cycleThroughHues, 150); // Change color every 500 ms
+}
+
+// Start the hue cycling
+cycleThroughHues();
+
 }
 
 
@@ -225,15 +296,18 @@ function eventListener() {
   window.addEventListener('open', console.log);
 }
 
+
+
+
 var variables = `var retry = false; var CHARACTERISTIC_READ_UUID = "${CHARACTERISTIC_READ_UUID}";var CHARACTERISTIC_WRITE_UUID = "${CHARACTERISTIC_WRITE_UUID}";var CHARACTERISTIC_NOTIFY_UUID = "${CHARACTERISTIC_NOTIFY_UUID}"; var SERVICE_UUID = "${SERVICE_UUID}"; var LIGHTS_ON_STRING = "${LIGHTS_ON_STRING}";var LIGHTS_OFF_STRING = "${LIGHTS_OFF_STRING}";`;
 
 var formHtml = "<form onsubmit=\"return false\">" +
   "<button id=\"lightsON\" style=\"width:50vw;height:5vh;margin-bottom:5vh;\" onclick=\"lightsOnClick()\">Lights ON</button>" +
   "<button id=\"lightsOFF\" style=\"width:50vw;height:5vh;\" onclick=\"lightsOffClick()\">Lights OFF</button>" +
   "<button id=\"lightsRED\" style=\"width:50vw;height:5vh;\" onclick=\"lightsRedClick()\">Lights RED</button>" +
-  "<button id=\"lightsSoftWhite\" style=\"width:50vw;height:5vh;\" onclick=\"lightsSoftWhiteClick()\">Lights Soft White</button>" +
+  "<button id=\"lightsGradient\" style=\"width:50vw;height:5vh;\" onclick=\"lightsGradientClick()\">Lights Gradient</button>" +
 "</form>" +
-"<script>" + hexStr2Bytes.toString() + byteToUint8Array.toString() + variables + lightsOffClick.toString() + lightsOnClick.toString() + lightsRedClick.toString() + lightsSoftWhiteClick.toString() + getColorCommand.toString() + getHex.toString() + onButtonClick.toString() + insertLog.toString() + ";" + eventListener.toString() + ";eventListener();</script>";
+"<script>" + hexStr2Bytes.toString() + byteToUint8Array.toString() + variables + lightsOffClick.toString() + lightsOnClick.toString() + lightsRedClick.toString() + lightsGradientClick.toString() + getColorCommand.toString() + getHex.toString() + onButtonClick.toString() + insertLog.toString() + ";" + eventListener.toString() + ";eventListener();</script>";
 
 
 var outputHtml = "<div id=\"output\" class=\"output\">" +

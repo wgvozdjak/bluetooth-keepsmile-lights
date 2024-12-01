@@ -344,7 +344,7 @@ function lightsMusicClick() {
 
         analyser = audioContext.createAnalyser();
         analyser.fftSize = 256;
-        analyser.smoothingTimeConstant = 0.4;
+        analyser.smoothingTimeConstant = 0.2;
         
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         microphone = audioContext.createMediaStreamSource(stream);

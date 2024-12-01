@@ -32,6 +32,7 @@ var LIGHTS_ON_STRING = "5BF000B5";
 var LIGHTS_OFF_STRING = "5B0F00B5";
 
 var testingMode = true; // New variable to toggle testing mode
+var sensitivity = 1; // Default sensitivity value
 
 function updateColorBox(r, g, b) {
   const colorBox = document.getElementById("colorBox");
@@ -294,46 +295,7 @@ function lightsMusicClick() {
   let analyser;
   let microphone;
   let isListening = false;
-  let lastUpdate = 0;
-  const UPDATE_INTERVAL = 50;
-  let lastDominantRange = null;
-  let energyHistory = [];
-  const ENERGY_HISTORY_SIZE = 20;
 
-  // Define frequency ranges outside the update function
-  const FREQUENCY_RANGES = {
-    subBass: { 
-      start: 0, 
-      end: 3, 
-      color: [148, 0, 211]  // Deep Purple
-    },
-    bass: { 
-      start: 4, 
-      end: 8, 
-      color: [255, 0, 0]    // Red
-    },
-    lowMids: { 
-      start: 9, 
-      end: 15, 
-      color: [255, 165, 0]  // Orange
-    },
-    mids: { 
-      start: 16, 
-      end: 30, 
-      color: [0, 255, 0]    // Green
-    },
-    highMids: { 
-      start: 31, 
-      end: 50, 
-      color: [0, 255, 255]  // Cyan
-    },
-    highs: { 
-      start: 51, 
-      end: 100, 
-      color: [0, 0, 255]    // Blue
-    }
-  };
-  
   async function startListening() {
     if (!isListening) {
       try {
@@ -344,14 +306,13 @@ function lightsMusicClick() {
 
         analyser = audioContext.createAnalyser();
         analyser.fftSize = 256;
-        analyser.smoothingTimeConstant = 0.4;
         
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         microphone = audioContext.createMediaStreamSource(stream);
         microphone.connect(analyser);
         
         isListening = true;
-        updateColors();
+        updateColorBasedOnMusic();
       } catch (error) {
         insertLog('Error accessing microphone: ' + error);
         console.error('Microphone error:', error);
@@ -359,103 +320,23 @@ function lightsMusicClick() {
     }
   }
 
-  function updateColors() {
+  function updateColorBasedOnMusic() {
     if (!isListening || !analyser) return;
-
-    const now = Date.now();
-    if (now - lastUpdate < UPDATE_INTERVAL) {
-      requestAnimationFrame(updateColors);
-      return;
-    }
-    lastUpdate = now;
 
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
     analyser.getByteFrequencyData(dataArray);
 
-    // Calculate energy for each range
-    const rangeEnergies = {};
-    for (const [name, range] of Object.entries(FREQUENCY_RANGES)) {
-      rangeEnergies[name] = averageRange(dataArray, range.start, range.end);
-    }
+    // Calculate total energy
+    const currentEnergy = dataArray.reduce((sum, value) => sum + value, 0);
+    const normalizedEnergy = Math.min(currentEnergy / (255 * bufferLength * sensitivity), 1); // Normalize to [0, 1]
 
-    // Find dominant range
-    let maxEnergy = 0;
-    let dominantRange = null;
-    for (const [name, energy] of Object.entries(rangeEnergies)) {
-      if (energy > maxEnergy) {
-        maxEnergy = energy;
-        dominantRange = name;
-      }
-    }
+    // Set color based on energy
+    const colorValue = Math.round(normalizedEnergy * 255);
+    onButtonClick(getColorCommand(colorValue, colorValue, colorValue, 100));
+    updateColorBox(colorValue, colorValue, colorValue); // Set RGB to the same value for grayscale
 
-    // Calculate total energy for beat detection
-    const currentEnergy = Object.values(rangeEnergies).reduce((a, b) => a + b, 0);
-    energyHistory.push(currentEnergy);
-    if (energyHistory.length > ENERGY_HISTORY_SIZE) {
-      energyHistory.shift();
-    }
-
-    // Beat detection
-    const averageEnergy = energyHistory.reduce((a, b) => a + b, 0) / energyHistory.length;
-    const energyVariance = Math.sqrt(
-      energyHistory.reduce((a, b) => a + Math.pow(b - averageEnergy, 2), 0) / energyHistory.length
-    );
-    const isBeat = currentEnergy > averageEnergy + (energyVariance * 0.5);
-
-    // Get base color from dominant range
-    let [r, g, b] = FREQUENCY_RANGES[dominantRange]?.color || [255, 255, 255];
-
-    // Find second strongest frequency for color blending
-    let secondaryRange = null;
-    let secondMaxEnergy = 0;
-    for (const [name, energy] of Object.entries(rangeEnergies)) {
-      if (name !== dominantRange && energy > secondMaxEnergy) {
-        secondMaxEnergy = energy;
-        secondaryRange = name;
-      }
-    }
-
-    // Blend with secondary color if it's strong enough
-    if (secondaryRange && secondMaxEnergy > maxEnergy * 0.6) {
-      const [sr, sg, sb] = FREQUENCY_RANGES[secondaryRange].color;
-      const blendRatio = secondMaxEnergy / maxEnergy * 0.3; // Max 30% influence
-      r = Math.round(r * (1 - blendRatio) + sr * blendRatio);
-      g = Math.round(g * (1 - blendRatio) + sg * blendRatio);
-      b = Math.round(b * (1 - blendRatio) + sb * blendRatio);
-    }
-
-    // Dynamic brightness calculation
-    let brightness;
-    if (isBeat) {
-      brightness = 100; // Full brightness on beats
-    } else {
-      // Calculate brightness based on energy level
-      const normalizedEnergy = currentEnergy / (255 * Object.keys(FREQUENCY_RANGES).length);
-      brightness = Math.round(40 + (normalizedEnergy * 60)); // Range from 40-100
-    }
-
-    // Ensure values are within bounds
-    brightness = Math.max(40, Math.min(100, brightness));
-    
-    // Send the color command
-    onButtonClick(getColorCommand(r, g, b, brightness));
-
-    // Update the color box
-    updateColorBox(r, g, b);
-
-    // Store current dominant range for next comparison
-    lastDominantRange = dominantRange;
-
-    requestAnimationFrame(updateColors);
-  }
-
-  function averageRange(array, start, end) {
-    let sum = 0;
-    for (let i = start; i <= end && i < array.length; i++) {
-      sum += array[i];
-    }
-    return sum / (end - start + 1);
+    requestAnimationFrame(updateColorBasedOnMusic);
   }
 
   startListening();
@@ -469,7 +350,7 @@ function eventListener() {
   window.addEventListener('open', console.log);
 }
 
-var variables = `var retry = false; var CHARACTERISTIC_READ_UUID = "${CHARACTERISTIC_READ_UUID}";var CHARACTERISTIC_WRITE_UUID = "${CHARACTERISTIC_WRITE_UUID}";var CHARACTERISTIC_NOTIFY_UUID = "${CHARACTERISTIC_NOTIFY_UUID}"; var SERVICE_UUID = "${SERVICE_UUID}"; var LIGHTS_ON_STRING = "${LIGHTS_ON_STRING}";var LIGHTS_OFF_STRING = "${LIGHTS_OFF_STRING}"; var testingMode = ${testingMode}; ${updateColorBox.toString()};`;
+var variables = `var retry = false; var CHARACTERISTIC_READ_UUID = "${CHARACTERISTIC_READ_UUID}";var CHARACTERISTIC_WRITE_UUID = "${CHARACTERISTIC_WRITE_UUID}";var CHARACTERISTIC_NOTIFY_UUID = "${CHARACTERISTIC_NOTIFY_UUID}"; var SERVICE_UUID = "${SERVICE_UUID}"; var LIGHTS_ON_STRING = "${LIGHTS_ON_STRING}";var LIGHTS_OFF_STRING = "${LIGHTS_OFF_STRING}"; var testingMode = ${testingMode}; var sensitivity = ${sensitivity}; ${updateColorBox.toString()};`;
 
 var formHtml = "<form onsubmit=\"return false\">" +
   "<button id=\"lightsON\" style=\"width:50vw;height:5vh;margin-bottom:5vh;\" onclick=\"lightsOnClick()\">Lights ON</button>" +
@@ -478,9 +359,11 @@ var formHtml = "<form onsubmit=\"return false\">" +
   "<button id=\"lightsGradient\" style=\"width:50vw;height:5vh;\" onclick=\"lightsGradientClick()\">Lights Gradient</button>" +
   "<button id=\"lightsMusic\" style=\"width:50vw;height:5vh;\" onclick=\"lightsMusicClick()\">Listen to Music</button>" +
   "<button id=\"toggleTesting\" style=\"width:50vw;height:5vh;\" onclick=\"toggleTestingMode()\">Toggle Testing Mode</button>" + // Button to toggle testing mode
+  "<label for='sensitivity'>Sound Sensitivity:</label>" +
+  "<input type='range' id='sensitivity' min='0.25' max='4' value='1' step='0.05' onchange='updateSensitivity(this.value)'>" + // Slider for sensitivity
 "</form>" +
 "<div id=\"colorBox\" style=\"width: 100px; height: 100px; border: 1px solid black;\"></div>" + // Color box added
-"<script>" + hexStr2Bytes.toString() + byteToUint8Array.toString() + variables + lightsOffClick.toString() + lightsOnClick.toString() + lightsRedClick.toString() + lightsGradientClick.toString() + lightsMusicClick.toString() + getColorCommand.toString() + getHex.toString() + onButtonClick.toString() + insertLog.toString() + "function toggleTestingMode() { testingMode = !testingMode; insertLog('Testing mode: ' + (testingMode ? 'ON' : 'OFF')); };" + eventListener.toString() + ";eventListener();</script>";
+"<script>" + hexStr2Bytes.toString() + byteToUint8Array.toString() + variables + lightsOffClick.toString() + lightsOnClick.toString() + lightsRedClick.toString() + lightsGradientClick.toString() + lightsMusicClick.toString() + getColorCommand.toString() + getHex.toString() + onButtonClick.toString() + insertLog.toString() + "function toggleTestingMode() { testingMode = !testingMode; insertLog('Testing mode: ' + (testingMode ? 'ON' : 'OFF')); };" + "function updateSensitivity(value) { sensitivity = value; insertLog('Sensitivity set to: ' + value); };" + eventListener.toString() + ";eventListener();</script>";
 
 var outputHtml = "<div id=\"output\" class=\"output\">" +
   "<div id=\"content\"></div>" +

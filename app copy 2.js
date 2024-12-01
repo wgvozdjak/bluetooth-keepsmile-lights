@@ -33,10 +33,10 @@ var LIGHTS_OFF_STRING = "5B0F00B5";
 
 var testingMode = true; // New variable to toggle testing mode
 var sensitivity = 1; // Default sensitivity value
-var rSensitivity = 1; // Default red sensitivity value
+var rSensitivity = 0.7; // Default red sensitivity value
 var gSensitivity = 1; // Default green sensitivity value
-var bSensitivity = 1; // Default blue sensitivity value
-var colorPower = 1; // Default color power value
+var bSensitivity = 1.4; // Default blue sensitivity value
+var colorPower = 1.8; // Default color power value
 
 // Default frequency range values
 var bassCenterFreq = 100;
@@ -450,20 +450,20 @@ var formHtml = "<form onsubmit=\"return false\">" +
     "<input type='range' id='sensitivity' min='0.25' max='4' value='1' step='0.05' onchange='updateSensitivity(this.value)'>" +
   "</div>" +
   "<div style='margin: 10px 0;'>" +
-    "<label for='rSensitivity'>Red Sensitivity: <span id='rSensitivityValue'>1</span></label>" +
-    "<input type='range' id='rSensitivity' min='0.25' max='4' value='1' step='0.05' onchange='updateRSensitivity(this.value)'>" +
+    "<label for='rSensitivity'>Red Sensitivity: <span id='rSensitivityValue'>0.7</span></label>" +
+    "<input type='range' id='rSensitivity' min='0.25' max='4' value='0.7' step='0.05' onchange='updateRSensitivity(this.value)'>" +
   "</div>" +
   "<div style='margin: 10px 0;'>" +
     "<label for='gSensitivity'>Green Sensitivity: <span id='gSensitivityValue'>1</span></label>" +
     "<input type='range' id='gSensitivity' min='0.25' max='4' value='1' step='0.05' onchange='updateGSensitivity(this.value)'>" +
   "</div>" +
   "<div style='margin: 10px 0;'>" +
-    "<label for='bSensitivity'>Blue Sensitivity: <span id='bSensitivityValue'>1</span></label>" +
-    "<input type='range' id='bSensitivity' min='0.25' max='4' value='1' step='0.05' onchange='updateBSensitivity(this.value)'>" +
+    "<label for='bSensitivity'>Blue Sensitivity: <span id='bSensitivityValue'>1.4</span></label>" +
+    "<input type='range' id='bSensitivity' min='0.25' max='4' value='1.4' step='0.05' onchange='updateBSensitivity(this.value)'>" +
   "</div>" +
   "<div style='margin: 10px 0;'>" +
-    "<label for='colorPower'>Color Power: <span id='colorPowerValue'>1</span></label>" +
-    "<input type='range' id='colorPower' min='1' max='5' value='1' step='0.2' onchange='updateColorPower(this.value)'>" +
+    "<label for='colorPower'>Color Power: <span id='colorPowerValue'>1.8</span></label>" +
+    "<input type='range' id='colorPower' min='1' max='5' value='1.8' step='0.2' onchange='updateColorPower(this.value)'>" +
   "</div>" +
   "<div style='margin: 10px 0;'>" +
     "<label for='bassCenterFreq'>Bass Center Frequency: <span id='bassCenterFreqValue'>100</span> Hz</label>" +

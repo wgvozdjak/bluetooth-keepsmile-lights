@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>KeepSmile Lights Controller</title>
+    <title>Lights Controller</title>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
       rel="stylesheet"
@@ -25,9 +25,30 @@
           <button id="lightsGradient" class="btn">Gradient</button>
           <div class="rgb-input-container">
             <div class="rgb-inputs">
-              <input type="number" id="redInput" placeholder="R" min="0" max="255" class="rgb-input" />
-              <input type="number" id="greenInput" placeholder="G" min="0" max="255" class="rgb-input" />
-              <input type="number" id="blueInput" placeholder="B" min="0" max="255" class="rgb-input" />
+              <input
+                type="number"
+                id="redInput"
+                placeholder="R"
+                min="0"
+                max="255"
+                class="rgb-input"
+              />
+              <input
+                type="number"
+                id="greenInput"
+                placeholder="G"
+                min="0"
+                max="255"
+                class="rgb-input"
+              />
+              <input
+                type="number"
+                id="blueInput"
+                placeholder="B"
+                min="0"
+                max="255"
+                class="rgb-input"
+              />
             </div>
             <button id="setRgbColor" class="btn">Set RGB</button>
           </div>
@@ -78,6 +99,17 @@
                 step="0.1"
                 value="1"
                 onchange="updateSensitivity(this.value)"
+              />
+            </div>
+            <div class="setting-item">
+              <label>Color Power: <span id="colorPowerValue">1.8</span></label>
+              <input
+                type="range"
+                min="0.1"
+                max="5"
+                step="0.1"
+                value="1.8"
+                onchange="updateColorPower(this.value)"
               />
             </div>
           </div>
@@ -153,6 +185,43 @@
                 max="8000"
                 value="4000"
                 onchange="updateHighCenter(this.value)"
+              />
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <h3>Frequency Ranges</h3>
+            <div class="setting-item">
+              <label>Bass Width: <span id="bassWidthValue">300</span>Hz</label>
+              <input
+                type="range"
+                min="100"
+                max="1000"
+                step="50"
+                value="300"
+                onchange="updateBassWidth(this.value)"
+              />
+            </div>
+            <div class="setting-item">
+              <label>Mid Width: <span id="midWidthValue">2000</span>Hz</label>
+              <input
+                type="range"
+                min="500"
+                max="4000"
+                step="100"
+                value="2000"
+                onchange="updateMidWidth(this.value)"
+              />
+            </div>
+            <div class="setting-item">
+              <label>High Width: <span id="highWidthValue">5000</span>Hz</label>
+              <input
+                type="range"
+                min="1000"
+                max="10000"
+                step="500"
+                value="5000"
+                onchange="updateHighWidth(this.value)"
               />
             </div>
           </div>

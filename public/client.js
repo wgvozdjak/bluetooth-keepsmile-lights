@@ -348,6 +348,11 @@ function lightsMusicClick(inputType = "microphone") {
     }
   }
 
+  /**
+   * Updates the color of the lights based on the current music input.
+   * This function analyzes the audio spectrum, calculates energy in different frequency bands,
+   * and maps these energies to RGB color values.
+   */
   function updateColorBasedOnMusic() {
     if (!isListening || !analyser) return;
 
@@ -362,21 +367,44 @@ function lightsMusicClick(inputType = "microphone") {
       high: { center: highCenterFreq, width: highWidth },
     };
 
-    // Helper function to calculate gaussian weight
+    /**
+     * Calculates the exponential Gaussian weight for a given frequency.
+     * @param {number} freq - The frequency to calculate the weight for.
+     * @param {number} center - The center frequency of the band.
+     * @param {number} width - The width of the frequency band (proportional to center).
+     * @returns {number} The calculated exponential Gaussian weight.
+     */
     function gaussianWeight(freq, center, width) {
-      return Math.exp(-Math.pow(freq - center, 2) / (2 * Math.pow(width, 2)));
+      const sigma = width / center;
+      const normalizationFactor = 1 / (freq * sigma * Math.sqrt(2 * Math.PI));
+      console.log(
+        normalizationFactor *
+          Math.exp(
+            -Math.pow(Math.log(freq / center), 2) / (2 * Math.pow(sigma, 2))
+          )
+      );
+      return (
+        normalizationFactor *
+        Math.exp(
+          -Math.pow(Math.log(freq / center), 2) / (2 * Math.pow(sigma, 2))
+        )
+      );
     }
 
-    // Calculate weighted energy across spectrum
+    /**
+     * Calculates the weighted energy across the audio spectrum.
+     * Uses a Gaussian weighting function to emphasize frequencies near the center of each band.
+     * @returns {Object} An object containing the normalized energy for bass, mid, and high frequency bands.
+     */
     function getWeightedEnergy() {
       const sampleRate = audioContext.sampleRate;
       const binSize = sampleRate / analyser.fftSize;
-      let bassEnergy = 0;
-      let midEnergy = 0;
-      let highEnergy = 0;
-      let bassWeight = 0;
-      let midWeight = 0;
-      let highWeight = 0;
+      let bassEnergy = 0,
+        midEnergy = 0,
+        highEnergy = 0;
+      let bassWeight = 0,
+        midWeight = 0,
+        highWeight = 0;
 
       for (let i = 0; i < bufferLength; i++) {
         const frequency = i * binSize;
@@ -397,12 +425,10 @@ function lightsMusicClick(inputType = "microphone") {
           frequencyRanges.high.width
         );
 
-        // Accumulate weighted energies
+        // Accumulate weighted energies and weights
         bassEnergy += dataArray[i] * bWeight;
         midEnergy += dataArray[i] * mWeight;
         highEnergy += dataArray[i] * hWeight;
-
-        // Accumulate weights for normalization
         bassWeight += bWeight;
         midWeight += mWeight;
         highWeight += hWeight;
@@ -439,15 +465,15 @@ function lightsMusicClick(inputType = "microphone") {
         : 0,
     ];
 
-    // Smooth the transition
-    lastColors = lastColors.map((last, i) => {
-      return Math.round(last * 0.8 + targetColors[i] * 0.2);
-    });
+    // Smooth the transition using exponential moving average
+    lastColors = lastColors.map((last, i) =>
+      Math.round(last * 0.8 + targetColors[i] * 0.2)
+    );
 
-    // Ensure values are within valid range
+    // Ensure values are within valid range (0-255)
     const finalColors = lastColors.map((v) => Math.min(255, Math.max(0, v)));
 
-    // Update lights and color box
+    // Update lights, color box, and charts
     onButtonClick(
       getColorCommand(finalColors[0], finalColors[1], finalColors[2], 100)
     );
@@ -556,6 +582,26 @@ function updateHighCenter(value) {
   highCenterFreq = parseInt(value);
   document.getElementById("highCenterValue").textContent = value;
   insertLog("High Center Frequency set to: " + value + "Hz");
+}
+
+function updateColorPower(value) {
+  colorPower = parseFloat(value);
+  document.getElementById("colorPowerValue").textContent = value;
+}
+
+function updateBassWidth(value) {
+  bassWidth = parseFloat(value);
+  document.getElementById("bassWidthValue").textContent = value;
+}
+
+function updateMidWidth(value) {
+  midWidth = parseFloat(value);
+  document.getElementById("midWidthValue").textContent = value;
+}
+
+function updateHighWidth(value) {
+  highWidth = parseFloat(value);
+  document.getElementById("highWidthValue").textContent = value;
 }
 
 // Initialize chart when the page loads

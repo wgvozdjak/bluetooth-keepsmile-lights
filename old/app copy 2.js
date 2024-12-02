@@ -331,6 +331,40 @@ function lightsMusicClick(inputType = "microphone") {
   let isListening = false;
   let lastColors = [0, 0, 0]; // Store last RGB values for smooth transitions
 
+  // Create circular buffers for energy history
+  const historySize = 30; // About 0.5 seconds of history at 60fps
+  const energyHistory = {
+    bass: Array(historySize).fill(0),
+    mid: Array(historySize).fill(0),
+    high: Array(historySize).fill(0),
+  };
+  let historyIndex = 0;
+
+  // Define spike thresholds (adjusted for averaging)
+  const spikeThresholds = {
+    bass: 1.8, // Trigger spike when current is 1.8x the average
+    mid: 1.8,
+    high: 1.8,
+  };
+
+  // Function to calculate moving average of recent energy levels
+  function getRecentAverageEnergies() {
+    const sum = (arr) => arr.reduce((a, b) => a + b, 0);
+    return {
+      bass: sum(energyHistory.bass) / historySize,
+      mid: sum(energyHistory.mid) / historySize,
+      high: sum(energyHistory.high) / historySize,
+    };
+  }
+
+  // Function to update energy history
+  function updateEnergyHistory(energies) {
+    energyHistory.bass[historyIndex] = energies.bass;
+    energyHistory.mid[historyIndex] = energies.mid;
+    energyHistory.high[historyIndex] = energies.high;
+    historyIndex = (historyIndex + 1) % historySize;
+  }
+
   async function startListening() {
     if (!isListening) {
       try {
@@ -464,17 +498,76 @@ function lightsMusicClick(inputType = "microphone") {
 
     const energies = getWeightedEnergy();
 
-    // Calculate total amplitude (sum of all energies) and apply sensitivity
+    // Update energy history and get average
+    updateEnergyHistory(energies);
+    const averageEnergies = getRecentAverageEnergies();
+
+    // Detect spikes by comparing current energies to recent average
+    const spikes = {
+      bass: energies.bass > averageEnergies.bass * spikeThresholds.bass,
+      mid: energies.mid > averageEnergies.mid * spikeThresholds.mid,
+      high: energies.high > averageEnergies.high * spikeThresholds.high,
+    };
+
+    // Calculate spike magnitudes relative to recent average
+    const spikeMagnitudes = {
+      bass: spikes.bass ? energies.bass / averageEnergies.bass : 1,
+      mid: spikes.mid ? energies.mid / averageEnergies.mid : 1,
+      high: spikes.high ? energies.high / averageEnergies.high : 1,
+    };
+
+    // Find the most significant spike
+    const maxSpikeMagnitude = Math.max(
+      spikeMagnitudes.bass,
+      spikeMagnitudes.mid,
+      spikeMagnitudes.high
+    );
+    const dominantFreq =
+      maxSpikeMagnitude > 1
+        ? spikeMagnitudes.bass === maxSpikeMagnitude
+          ? "bass"
+          : spikeMagnitudes.mid === maxSpikeMagnitude
+          ? "mid"
+          : "high"
+        : null;
+
+    // Calculate total amplitude and apply sensitivity
     const totalAmplitude =
       (energies.bass + energies.mid + energies.high) * sensitivity;
 
-    // Calculate relative proportions with power adjustment
-    const bassRatio = Math.pow(energies.bass * rSensitivity, colorPower);
-    const midRatio = Math.pow(energies.mid * gSensitivity, colorPower);
-    const highRatio = Math.pow(energies.high * bSensitivity, colorPower);
+    // Adjust sensitivities based on spike dominance
+    const spikeEmphasisFactor = 500; // Increase this to make dominant spikes more dramatic
+    const dynamicSensitivities = {
+      bass:
+        dominantFreq === "bass"
+          ? rSensitivity * spikeEmphasisFactor
+          : rSensitivity * 0.5,
+      mid:
+        dominantFreq === "mid"
+          ? gSensitivity * spikeEmphasisFactor
+          : gSensitivity * 0.5,
+      high:
+        dominantFreq === "high"
+          ? bSensitivity * spikeEmphasisFactor
+          : bSensitivity * 0.5,
+    };
+
+    // Calculate relative proportions with power adjustment and spike emphasis
+    const bassRatio = Math.pow(
+      energies.bass * dynamicSensitivities.bass,
+      colorPower
+    );
+    const midRatio = Math.pow(
+      energies.mid * dynamicSensitivities.mid,
+      colorPower
+    );
+    const highRatio = Math.pow(
+      energies.high * dynamicSensitivities.high,
+      colorPower
+    );
     const totalRatio = bassRatio + midRatio + highRatio;
 
-    // Calculate final colors maintaining total brightness but adjusted proportions
+    // Calculate final colors with emphasis on dominant frequency
     const targetColors = [
       totalRatio > 0
         ? Math.round((bassRatio / totalRatio) * totalAmplitude)
@@ -499,10 +592,27 @@ function lightsMusicClick(inputType = "microphone") {
     );
     updateColorBox(finalColors[0], finalColors[1], finalColors[2]);
 
+    // Update the charts with current energy values
+    updateCharts(
+      energies.bass * 1000, // Increased multiplier from 255 to 1000
+      energies.mid * 1000,
+      energies.high * 1000
+    );
+
     requestAnimationFrame(updateColorBasedOnMusic);
   }
 
   startListening();
+}
+
+function updateCharts(bass, mid, high) {
+  combinedChart.data.datasets[0].data.push(bass);
+  combinedChart.data.datasets[0].data.shift();
+  combinedChart.data.datasets[1].data.push(mid);
+  combinedChart.data.datasets[1].data.shift();
+  combinedChart.data.datasets[2].data.push(high);
+  combinedChart.data.datasets[2].data.shift();
+  combinedChart.update();
 }
 
 function eventListener() {
@@ -513,10 +623,83 @@ function eventListener() {
   window.addEventListener("open", console.log);
 }
 
-var variables = `var retry = false; var CHARACTERISTIC_READ_UUID = "${CHARACTERISTIC_READ_UUID}";var CHARACTERISTIC_WRITE_UUID = "${CHARACTERISTIC_WRITE_UUID}";var CHARACTERISTIC_NOTIFY_UUID = "${CHARACTERISTIC_NOTIFY_UUID}"; var SERVICE_UUID = "${SERVICE_UUID}"; var LIGHTS_ON_STRING = "${LIGHTS_ON_STRING}";var LIGHTS_OFF_STRING = "${LIGHTS_OFF_STRING}"; var testingMode = ${testingMode}; var sensitivity = ${sensitivity}; var rSensitivity = ${rSensitivity}; var gSensitivity = ${gSensitivity}; var bSensitivity = ${bSensitivity}; var colorPower = ${colorPower}; var bassCenterFreq = ${bassCenterFreq}; var bassWidth = ${bassWidth}; var midCenterFreq = ${midCenterFreq}; var midWidth = ${midWidth}; var highCenterFreq = ${highCenterFreq}; var highWidth = ${highWidth}; ${updateColorBox.toString()};`;
+var variables = `var retry = false; var CHARACTERISTIC_READ_UUID = "${CHARACTERISTIC_READ_UUID}";var CHARACTERISTIC_WRITE_UUID = "${CHARACTERISTIC_WRITE_UUID}";var CHARACTERISTIC_NOTIFY_UUID = "${CHARACTERISTIC_NOTIFY_UUID}"; var SERVICE_UUID = "${SERVICE_UUID}"; var LIGHTS_ON_STRING = "${LIGHTS_ON_STRING}";var LIGHTS_OFF_STRING = "${LIGHTS_OFF_STRING}"; var testingMode = ${testingMode}; var sensitivity = ${sensitivity}; var rSensitivity = ${rSensitivity}; var gSensitivity = ${gSensitivity}; var bSensitivity = ${bSensitivity}; var colorPower = ${colorPower}; var bassCenterFreq = ${bassCenterFreq}; var bassWidth = ${bassWidth}; var midCenterFreq = ${midCenterFreq}; var midWidth = ${midWidth}; var highCenterFreq = ${highCenterFreq}; var highWidth = ${highWidth}; ${updateColorBox.toString()};
+
+// Initialize charts
+let combinedChart;
+
+function initializeChart() {
+  const ctx = document.getElementById('combinedChart').getContext('2d');
+  const maxDataPoints = 200; // Increased from 50 to 200 for longer history
+
+  combinedChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: Array(maxDataPoints).fill(''),
+      datasets: [
+        {
+          label: 'Bass',
+          data: Array(maxDataPoints).fill(0),
+          borderColor: 'rgb(255, 0, 0)',
+          tension: 0.4,
+          fill: false
+        },
+        {
+          label: 'Mid',
+          data: Array(maxDataPoints).fill(0),
+          borderColor: 'rgb(0, 255, 0)',
+          tension: 0.4,
+          fill: false
+        },
+        {
+          label: 'High',
+          data: Array(maxDataPoints).fill(0),
+          borderColor: 'rgb(0, 0, 255)',
+          tension: 0.4,
+          fill: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      animation: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 300000, // Increased from 255 to 2000 to accommodate higher values
+          ticks: {
+            stepSize: 200
+          }
+        }
+      },
+      elements: {
+        point: {
+          radius: 0 // Hide points for better performance
+        }
+      }
+    }
+  });
+}
+
+function updateCharts(bass, mid, high) {
+  combinedChart.data.datasets[0].data.push(bass);
+  combinedChart.data.datasets[0].data.shift();
+  combinedChart.data.datasets[1].data.push(mid);
+  combinedChart.data.datasets[1].data.shift();
+  combinedChart.data.datasets[2].data.push(high);
+  combinedChart.data.datasets[2].data.shift();
+  combinedChart.update();
+}
+
+`;
 
 var formHtml =
   '<form onsubmit="return false">' +
+  '<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>' +
+  '<div style="display: flex; flex-direction: column; align-items: center; width: 100%;">' +
+  '<div style="width: 80%; margin: 20px 0;">' +
+  '<canvas id="combinedChart"></canvas>' +
+  "</div>" +
   '<button id="lightsON" style="width:50vw;height:5vh;margin-bottom:5vh;" onclick="lightsOnClick()">Lights ON</button>' +
   '<button id="lightsOFF" style="width:50vw;height:5vh;" onclick="lightsOffClick()">Lights OFF</button>' +
   '<button id="lightsRED" style="width:50vw;height:5vh;" onclick="lightsRedClick()">Lights RED</button>' +
@@ -599,7 +782,7 @@ var formHtml =
   "function updateHighCenterFreq(value) { highCenterFreq = Number(value); document.getElementById('highCenterFreqValue').textContent = value; insertLog('High Center Frequency set to: ' + value + ' Hz'); };" +
   "function updateHighWidth(value) { highWidth = Number(value); document.getElementById('highWidthValue').textContent = value; insertLog('High Width set to: ' + value + ' Hz'); };" +
   eventListener.toString() +
-  ";eventListener();</script>";
+  ";eventListener(); initializeChart();</script>";
 
 var outputHtml =
   '<div id="output" class="output">' +

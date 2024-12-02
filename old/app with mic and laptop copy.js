@@ -3,7 +3,6 @@ var bodyParser = require("body-parser");
 const https = require("https");
 const fs = require("fs");
 const os = require("os");
-const path = require("path");
 
 var chromeUserDataDir =
   "/Users/elliott/Library/Application Support/Google/Chrome/Default";
@@ -332,6 +331,14 @@ function lightsMusicClick(inputType = "microphone") {
   let isListening = false;
   let lastColors = [0, 0, 0]; // Store last RGB values for smooth transitions
 
+  // Add volume history tracking
+  const historyLength = 30; // Track last 30 frames
+  let volumeHistory = {
+    bass: Array(historyLength).fill(0),
+    mid: Array(historyLength).fill(0),
+    high: Array(historyLength).fill(0),
+  };
+
   async function startListening() {
     if (!isListening) {
       try {
@@ -464,6 +471,48 @@ function lightsMusicClick(inputType = "microphone") {
     }
 
     const energies = getWeightedEnergy();
+
+    // Update volume history
+    volumeHistory.bass = [...volumeHistory.bass.slice(1), energies.bass];
+    volumeHistory.mid = [...volumeHistory.mid.slice(1), energies.mid];
+    volumeHistory.high = [...volumeHistory.high.slice(1), energies.high];
+
+    // Calculate variance for each frequency band
+    function calculateVariance(array) {
+      const mean = array.reduce((a, b) => a + b) / array.length;
+      return (
+        array.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / array.length
+      );
+    }
+
+    const variances = {
+      bass: calculateVariance(volumeHistory.bass),
+      mid: calculateVariance(volumeHistory.mid),
+      high: calculateVariance(volumeHistory.high),
+    };
+
+    // Calculate dynamic amplification factors based on variance
+    // Using exponential decay for smooth continuous amplification
+    const maxAmplification = 2.0;
+    const decayFactor = 2000; // Controls how quickly amplification drops off with variance
+    const getAmplification = (variance) => {
+      // e^(-x) gives us a smooth curve from 1 to 0
+      // We scale it to go from 1 to maxAmplification instead
+      return (
+        1 + (maxAmplification - 1) * Math.exp((-variance * 1000) / decayFactor)
+      );
+    };
+
+    const amplificationFactors = {
+      bass: getAmplification(variances.bass),
+      mid: getAmplification(variances.mid),
+      high: getAmplification(variances.high),
+    };
+
+    // Apply amplification to energies
+    energies.bass *= amplificationFactors.bass;
+    energies.mid *= amplificationFactors.mid;
+    energies.high *= amplificationFactors.high;
 
     // Calculate total amplitude (sum of all energies) and apply sensitivity
     const totalAmplitude =
@@ -604,16 +653,16 @@ var formHtml =
   "<input type='range' id='sensitivity' min='0.25' max='4' value='1' step='0.05' onchange='updateSensitivity(this.value)'>" +
   "</div>" +
   "<div style='margin: 10px 0;'>" +
-  "<label for='rSensitivity'>Red Sensitivity: <span id='rSensitivityValue'>1.05</span></label>" +
-  "<input type='range' id='rSensitivity' min='0.25' max='4' value='1.05' step='0.05' onchange='updateRSensitivity(this.value)'>" +
+  "<label for='rSensitivity'>Red Sensitivity: <span id='rSensitivityValue'>0.7</span></label>" +
+  "<input type='range' id='rSensitivity' min='0.25' max='4' value='0.7' step='0.05' onchange='updateRSensitivity(this.value)'>" +
   "</div>" +
   "<div style='margin: 10px 0;'>" +
-  "<label for='gSensitivity'>Green Sensitivity: <span id='gSensitivityValue'>1.15</span></label>" +
-  "<input type='range' id='gSensitivity' min='0.25' max='4' value='1.15' step='0.05' onchange='updateGSensitivity(this.value)'>" +
+  "<label for='gSensitivity'>Green Sensitivity: <span id='gSensitivityValue'>1</span></label>" +
+  "<input type='range' id='gSensitivity' min='0.25' max='4' value='1' step='0.05' onchange='updateGSensitivity(this.value)'>" +
   "</div>" +
   "<div style='margin: 10px 0;'>" +
-  "<label for='bSensitivity'>Blue Sensitivity: <span id='bSensitivityValue'>1.15</span></label>" +
-  "<input type='range' id='bSensitivity' min='0.25' max='4' value='1.15' step='0.05' onchange='updateBSensitivity(this.value)'>" +
+  "<label for='bSensitivity'>Blue Sensitivity: <span id='bSensitivityValue'>1.4</span></label>" +
+  "<input type='range' id='bSensitivity' min='0.25' max='4' value='1.4' step='0.05' onchange='updateBSensitivity(this.value)'>" +
   "</div>" +
   "<div style='margin: 10px 0;'>" +
   "<label for='colorPower'>Color Power: <span id='colorPowerValue'>1.8</span></label>" +
@@ -721,10 +770,8 @@ function openChrome(command) {
   });
 }
 
-app.use(express.static(path.join(__dirname, "public")));
-
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  res.send(formHtml + outputHtml);
 });
 
 app.post("/", jsonParser, (req, res) => {

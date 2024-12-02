@@ -1,17 +1,17 @@
 // Global variables
 let retry = false;
 let testingMode = false;
-let sensitivity = 1;
-let rSensitivity = 1.05;
+let sensitivity = 0.8;
+let rSensitivity = 1.0;
 let gSensitivity = 1.15;
-let bSensitivity = 1.15;
-let colorPower = 1.8;
-let bassCenterFreq = 100;
-let bassWidth = 300;
-let midCenterFreq = 1000;
-let midWidth = 2000;
-let highCenterFreq = 4000;
-let highWidth = 5000;
+let bSensitivity = 1.35;
+let colorPower = 3.9;
+let bassCenterFreq = 50;
+let bassWidth = 25;
+let midCenterFreq = 500;
+let midWidth = 200;
+let highCenterFreq = 1500;
+let highWidth = 800;
 let currentDevice = null; // Store the current Bluetooth device
 
 // Constants
@@ -220,7 +220,7 @@ function initializeChart() {
           beginAtZero: true,
           suggestedMax: 255, // Changed to match RGB max value
           ticks: {
-            stepSize: 50, // Smaller steps for better granularity
+            stepSize: 25, // Smaller steps for better granularity
           },
           grid: {
             color: "rgba(0, 0, 0, 0.1)", // Lighter grid lines
@@ -376,13 +376,7 @@ function lightsMusicClick(inputType = "microphone") {
      */
     function gaussianWeight(freq, center, width) {
       const sigma = width / center;
-      const normalizationFactor = 1 / (freq * sigma * Math.sqrt(2 * Math.PI));
-      console.log(
-        normalizationFactor *
-          Math.exp(
-            -Math.pow(Math.log(freq / center), 2) / (2 * Math.pow(sigma, 2))
-          )
-      );
+      const normalizationFactor = 1 / (sigma * Math.sqrt(2 * Math.PI));
       return (
         normalizationFactor *
         Math.exp(
@@ -467,7 +461,7 @@ function lightsMusicClick(inputType = "microphone") {
 
     // Smooth the transition using exponential moving average
     lastColors = lastColors.map((last, i) =>
-      Math.round(last * 0.8 + targetColors[i] * 0.2)
+      Math.round(last * 0.83 + targetColors[i] * 0.17)
     );
 
     // Ensure values are within valid range (0-255)

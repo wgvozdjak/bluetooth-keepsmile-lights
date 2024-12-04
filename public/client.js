@@ -15,10 +15,10 @@ let highWidth = 800;
 let currentDevice = null; // Store the current Bluetooth device
 
 // Constants
-const SERVICE_UUID = "0000afd0-0000-1000-8000-00805f9b34fb";
-const CHARACTERISTIC_READ_UUID = "0000afd3-0000-1000-8000-00805f9b34fb";
-const CHARACTERISTIC_WRITE_UUID = "0000afd1-0000-1000-8000-00805f9b34fb";
-const CHARACTERISTIC_NOTIFY_UUID = "0000afd2-0000-1000-8000-00805f9b34fb";
+const SERVICE_UUID = "0000fff0-0000-1000-8000-00805f9b34fb"; //"0000afd0-0000-1000-8000-00805f9b34fb";
+const CHARACTERISTIC_READ_UUID = "0000fff3-0000-1000-8000-00805f9b34fb"; //"0000afd3-0000-1000-8000-00805f9b34fb";
+const CHARACTERISTIC_WRITE_UUID = "0000fff3-0000-1000-8000-00805f9b34fb"; // "0000afd1-0000-1000-8000-00805f9b34fb";
+const CHARACTERISTIC_NOTIFY_UUID = "0000fff3-0000-1000-8000-00805f9b34fb"; // "0000afd2-0000-1000-8000-00805f9b34fb";
 const LIGHTS_ON_STRING = "5BF000B5";
 const LIGHTS_OFF_STRING = "5B0F00B5";
 
@@ -113,7 +113,7 @@ async function requestDevice() {
   const options = {
     filters: [
       { namePrefix: "KS03" },
-      { name: "KS03~791C47" },
+      { name: "KS03-791C47" },
       { services: [SERVICE_UUID] },
     ],
     acceptAllDevices: false,

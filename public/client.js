@@ -19,8 +19,33 @@ const SERVICE_UUID = "0000fff0-0000-1000-8000-00805f9b34fb"; //"0000afd0-0000-10
 const CHARACTERISTIC_READ_UUID = "0000fff3-0000-1000-8000-00805f9b34fb"; //"0000afd3-0000-1000-8000-00805f9b34fb";
 const CHARACTERISTIC_WRITE_UUID = "0000fff3-0000-1000-8000-00805f9b34fb"; // "0000afd1-0000-1000-8000-00805f9b34fb";
 const CHARACTERISTIC_NOTIFY_UUID = "0000fff3-0000-1000-8000-00805f9b34fb"; // "0000afd2-0000-1000-8000-00805f9b34fb";
-const LIGHTS_ON_STRING = "5BF000B5";
-const LIGHTS_OFF_STRING = "5B0F00B5";
+const LIGHTS_ON_STRING = "7E0404F00101FF00EF"; // "5BF000B5";
+const LIGHTS_OFF_STRING = "7E0404100100FF00EF"; // "5B0F00B5";
+
+/**
+ * Converts RGB values to a hexadecimal color string
+ * @param {number} red - Red value (0-255)
+ * @param {number} green - Green value (0-255)
+ * @param {number} blue - Blue value (0-255)
+ * @returns {string} Hex color string (e.g. "#ff0000")
+ */
+function toHexEncoding(red, green, blue) {
+  let hexString = red.toString(16);
+  let hexString2 = green.toString(16);
+  let hexString3 = blue.toString(16);
+
+  if (hexString.length === 1) {
+    hexString = "0" + hexString;
+  }
+  if (hexString2.length === 1) {
+    hexString2 = "0" + hexString2;
+  }
+  if (hexString3.length === 1) {
+    hexString3 = "0" + hexString3;
+  }
+
+  return "#" + hexString + hexString2 + hexString3;
+}
 
 // Utility functions
 function updateColorBox(r, g, b) {
@@ -75,15 +100,7 @@ function getColorCommand(red, green, blue, brightness) {
   blue = Math.min(255, Math.max(0, Math.round(blue)));
   brightness = Math.min(100, Math.max(0, Math.round(brightness)));
 
-  return (
-    "5A0001" +
-    getHex(red) +
-    getHex(green) +
-    getHex(blue) +
-    "00" +
-    getHex(brightness) +
-    "00A5"
-  );
+  return "7E070503" + toHexEncoding(red, green, blue).replace("#", "") + "00EF";
 }
 
 // Bluetooth functions

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lights Controller</title>
+    <title>KeepSmile Lights Controller</title>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
       rel="stylesheet"
@@ -14,63 +14,94 @@
   <body>
     <div class="container">
       <header>
-        <h1>LIGHTS CONTROLLER</h1>
+        <h1>KEEPSMILE LIGHTS CONTROLLER</h1>
+        <p class="subtitle">Control your ambient lighting experience</p>
       </header>
 
-      <div class="control-panel">
-        <div class="button-group">
-          <button id="lightsON" class="btn primary">Turn On</button>
-          <button id="lightsOFF" class="btn">Turn Off</button>
-          <button id="lightsRed" class="btn">Red Light</button>
-          <button id="lightsGradient" class="btn">Gradient</button>
-          <div class="rgb-input-container">
-            <div class="rgb-inputs">
-              <input
-                type="number"
-                id="redInput"
-                placeholder="R"
-                min="0"
-                max="255"
-                class="rgb-input"
-              />
-              <input
-                type="number"
-                id="greenInput"
-                placeholder="G"
-                min="0"
-                max="255"
-                class="rgb-input"
-              />
-              <input
-                type="number"
-                id="blueInput"
-                placeholder="B"
-                min="0"
-                max="255"
-                class="rgb-input"
-              />
+      <div class="main-content">
+        <div class="control-panel">
+          <div class="button-sections">
+            <!-- Power Controls Section -->
+            <div class="button-section">
+              <h3>Power Controls</h3>
+              <div class="button-group">
+                <button id="lightsON" class="btn special">Turn On</button>
+                <button id="lightsOFF" class="btn">Turn Off</button>
+              </div>
             </div>
-            <button id="setRgbColor" class="btn">Set RGB</button>
-          </div>
-          <button id="lightsMicMode" class="btn special">
-            Microphone Mode
-          </button>
-          <button id="lightsComputerMode" class="btn special">
-            Computer Audio Mode
-          </button>
-        </div>
 
-        <div class="visualization">
-          <div class="color-preview">
-            <div id="colorBox" class="color-box"></div>
-            <div class="rgb-preview">
-              <div id="redBox" class="color-box-small"></div>
-              <div id="greenBox" class="color-box-small"></div>
-              <div id="blueBox" class="color-box-small"></div>
+            <!-- Color Controls Section -->
+            <div class="button-section">
+              <h3>Color Controls</h3>
+              <div class="button-group">
+                <button id="lightsGradient" class="btn special">
+                  Gradient
+                </button>
+                <div class="rgb-input-container">
+                  <div class="rgb-inputs">
+                    <input
+                      type="number"
+                      id="redInput"
+                      placeholder="R"
+                      min="0"
+                      max="255"
+                      class="rgb-input"
+                    />
+                    <input
+                      type="number"
+                      id="greenInput"
+                      placeholder="G"
+                      min="0"
+                      max="255"
+                      class="rgb-input"
+                    />
+                    <input
+                      type="number"
+                      id="blueInput"
+                      placeholder="B"
+                      min="0"
+                      max="255"
+                      class="rgb-input"
+                    />
+                  </div>
+                  <button id="setRgbColor" class="btn special">Set RGB</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Audio Controls Section -->
+            <div class="button-section">
+              <h3>Audio Controls</h3>
+              <div class="button-group">
+                <button id="lightsMicMode" class="btn special">
+                  Microphone Mode
+                </button>
+                <button id="lightsComputerMode" class="btn special">
+                  Computer Audio Mode
+                </button>
+              </div>
             </div>
           </div>
-          <div class="chart-container">
-            <canvas id="combinedChart"></canvas>
+
+          <div class="visualization">
+            <div class="visualization-section">
+              <h3>Color Preview</h3>
+              <div class="color-preview">
+                <div id="colorBox" class="color-box"></div>
+                <div class="rgb-preview">
+                  <div id="redBox" class="color-box-small"></div>
+                  <div id="greenBox" class="color-box-small"></div>
+                  <div id="blueBox" class="color-box-small"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="visualization-section">
+              <h3>Audio Visualization</h3>
+              <div class="chart-container">
+                <canvas id="combinedChart"></canvas>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -80,14 +111,12 @@
             <div class="setting-item">
               <label>Testing Mode</label>
               <div class="testing-mode-container">
+                <span id="testingModeStatus" class="status-text">OFF</span>
                 <button
                   id="testingModeToggle"
                   class="btn-toggle"
                   onclick="toggleTestingMode()"
-                >
-                  Toggle
-                </button>
-                <span id="testingModeStatus" class="status-text">OFF</span>
+                ></button>
               </div>
             </div>
             <div class="setting-item">
@@ -227,8 +256,8 @@
       </div>
 
       <div class="log-panel">
-        <h3>Log</h3>
-        <pre id="log"></pre>
+        <h3>Logs</h3>
+        <pre id="log">No logs</pre>
       </div>
     </div>
     <script src="/client.js"></script>

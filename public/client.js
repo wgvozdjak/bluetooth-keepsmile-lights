@@ -34,6 +34,9 @@ function updateColorBox(r, g, b) {
 function insertLog(msg) {
   console.log(msg);
   const logElement = document.getElementById("log");
+  if (logElement.innerHTML === '<span class="empty-log">No logs</span>') {
+    logElement.innerHTML = "";
+  }
   logElement.innerHTML += `<p>${msg}</p>`;
   logElement.scrollTop = logElement.scrollHeight;
 }
@@ -531,8 +534,12 @@ rgbInputs.forEach((id) => {
 // Settings update functions
 function toggleTestingMode() {
   testingMode = !testingMode;
-  const statusElement = document.getElementById("testingModeStatus");
-  statusElement.textContent = testingMode ? "ON" : "OFF";
+  const toggleButton = document.getElementById("testingModeToggle");
+  const statusText = document.getElementById("testingModeStatus");
+
+  toggleButton.classList.toggle("active", testingMode);
+  statusText.classList.toggle("active", testingMode);
+  statusText.textContent = testingMode ? "ON" : "OFF";
   insertLog("Testing mode: " + (testingMode ? "ON" : "OFF"));
 }
 

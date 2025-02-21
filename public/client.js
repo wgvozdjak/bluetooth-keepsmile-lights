@@ -3,6 +3,7 @@ let retry = false;
 let testingMode = false;
 let sensitivity = 0.8;
 let rSensitivity = 1.0;
+let updateInterval = 30; // milliseconds between updates
 let gSensitivity = 1.15;
 let bSensitivity = 1.35;
 let colorPower = 3.9;
@@ -471,9 +472,16 @@ function lightsMusicClick(inputType = "microphone") {
     const finalColors = lastColors.map((v) => Math.min(255, Math.max(0, v)));
 
     // Update lights, color box, and charts
-    onButtonClick(
-      getColorCommand(finalColors[0], finalColors[1], finalColors[2], 100)
-    );
+    const currentTime = performance.now();
+    if (
+      !updateColorBasedOnMusic.lastUpdateTime ||
+      currentTime - updateColorBasedOnMusic.lastUpdateTime >= updateInterval
+    ) {
+      onButtonClick(
+        getColorCommand(finalColors[0], finalColors[1], finalColors[2], 100)
+      );
+      updateColorBasedOnMusic.lastUpdateTime = currentTime;
+    }
     updateColorBox(finalColors[0], finalColors[1], finalColors[2]);
     updateCharts(finalColors[0], finalColors[1], finalColors[2]);
 
@@ -588,6 +596,11 @@ function updateHighCenter(value) {
 function updateColorPower(value) {
   colorPower = parseFloat(value);
   document.getElementById("colorPowerValue").textContent = value;
+}
+
+function updateUpdateInterval(value) {
+  updateInterval = parseInt(value);
+  document.getElementById("updateIntervalValue").textContent = value;
 }
 
 function updateBassWidth(value) {

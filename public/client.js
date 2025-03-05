@@ -33,7 +33,7 @@ function updateColorBox(r, g, b) {
 }
 
 function insertLog(msg) {
-  console.log(msg);
+  // console.log(msg);
   const logElement = document.getElementById("log");
   if (logElement.innerHTML === '<span class="empty-log">No logs</span>') {
     logElement.innerHTML = "";
@@ -95,7 +95,7 @@ async function onButtonClick(command) {
   document.getElementById("log").innerHTML = "";
 
   if (testingMode) {
-    insertLog("Testing mode: Command sent: " + command);
+    // insertLog("Testing mode: Command sent: " + command);
     return;
   }
 
@@ -127,8 +127,8 @@ async function requestDevice() {
   try {
     const device = await navigator.bluetooth.requestDevice(options);
     device.addEventListener("gattserverdisconnected", handleDisconnection);
-    insertLog("> Name: " + device.name);
-    insertLog("> Id: " + device.id);
+    // insertLog("> Name: " + device.name);
+    // insertLog("> Id: " + device.id);
     return device;
   } catch (error) {
     throw error;
@@ -136,7 +136,7 @@ async function requestDevice() {
 }
 
 function handleDisconnection() {
-  insertLog("Device disconnected");
+  // insertLog("Device disconnected");
   currentDevice = null; // Clear the current device when disconnected
 }
 
@@ -148,9 +148,9 @@ async function connectAndWrite(device, command) {
       CHARACTERISTIC_WRITE_UUID
     );
     const bytes = hexStr2Bytes(command);
-    console.log("----------------", command);
+    // console.log("----------------", command);
     await characteristic.writeValue(byteToUint8Array(bytes));
-    insertLog("Command sent successfully");
+    // insertLog("Command sent successfully");
   } catch (error) {
     throw error;
   }
@@ -164,7 +164,7 @@ function handleBluetoothError(error) {
   ) {
     if (!retry) {
       retry = true;
-      insertLog("Device permission failed, retrying...");
+      // insertLog("Device permission failed, retrying...");
       setTimeout(() => {
         if (command === LIGHTS_ON_STRING) {
           document.getElementById("lightsON").click();
@@ -173,10 +173,10 @@ function handleBluetoothError(error) {
         }
       }, 2000);
     } else {
-      insertLog("Device permission failed, no retry.");
+      // insertLog("Device permission failed, no retry.");
     }
   } else {
-    insertLog("Error: " + error);
+    // insertLog("Error: " + error);
   }
 }
 

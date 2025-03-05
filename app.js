@@ -57,6 +57,8 @@ function updateColorBox(r, g, b) {
 }
 
 function insertLog(msg) {
+  // Function commented out to remove logging
+  return;
   console.log(msg);
   document.getElementById("log").innerHTML += "<p>" + msg + "</p>";
 }
@@ -123,7 +125,7 @@ function onButtonClick(command) {
 
   if (testingMode) {
     // In testing mode, simulate the command execution without connecting to a device
-    insertLog("Testing mode: Command sent: " + command);
+    // insertLog("Testing mode: Command sent: " + command);
     return;
   }
 
@@ -138,19 +140,19 @@ function onButtonClick(command) {
         acceptAllDevices: false,
         optionalServices: [SERVICE_UUID],
       };
-      console.log(navigator.bluetooth);
+      // console.log(navigator.bluetooth);
 
       navigator.bluetooth
         .requestDevice(options)
         .then((device) => {
-          insertLog("> Name:             " + device.name);
-          insertLog("> Id:               " + device.id);
+          // insertLog("> Name:             " + device.name);
+          // insertLog("> Id:               " + device.id);
           resolve(device);
         }, reject)
         .catch(reject);
       if (timeout) {
         setTimeout(function () {
-          insertLog("Timeout");
+          // insertLog("Timeout");
           return resolve();
         }, 5000);
       }
@@ -163,8 +165,8 @@ function onButtonClick(command) {
         if (server != undefined) {
           write(server);
         } else {
-          insertLog("No device found");
-          insertLog(d);
+          // insertLog("No device found");
+          // insertLog(d);
         }
       })
       .catch((error) => {
@@ -176,7 +178,7 @@ function onButtonClick(command) {
           if (retry == false) {
             retry = true;
             setTimeout(function () {
-              insertLog("Device permission failed, retrying...");
+              // insertLog("Device permission failed, retrying...");
 
               if (command == LIGHTS_ON_STRING) {
                 document.getElementById("lightsON").click();
@@ -187,7 +189,7 @@ function onButtonClick(command) {
               return Promise.reject(error);
             }, 2000);
           } else {
-            insertLog("Device permission failed, no retry.");
+            // insertLog("Device permission failed, no retry.");
             return promptForDevice().then(function (d) {
               return connectDevice(d);
             });
@@ -200,16 +202,16 @@ function onButtonClick(command) {
 
   var device;
   if (navigator.bluetooth.getDevices != undefined) {
-    insertLog("getDevices found");
+    // insertLog("getDevices found");
     device = navigator.bluetooth.getDevices().then((devices) => {
       for (let device of devices) {
         if (device.name == "KS03~430052") {
-          insertLog("Device: " + device.name);
-          insertLog("Device id: " + device.id);
+          // insertLog("Device: " + device.name);
+          // insertLog("Device id: " + device.id);
           return Promise.resolve(device);
         }
       }
-      insertLog("No saved device found, prompting for new device...");
+      // insertLog("No saved device found, prompting for new device...");
       timeout = false;
       return promptForDevice();
     });
@@ -223,48 +225,48 @@ function onButtonClick(command) {
       }
     });
   } else {
-    insertLog("getDevices not found");
+    // insertLog("getDevices not found");
   }
   function handleLightStatus(value) {
     if (value instanceof DataView) {
       // Convert DataView to an array of bytes
       const byteArray = new Uint8Array(value.buffer);
-      insertLog("Received status bytes: " + Array.from(byteArray).join(", "));
+      // insertLog("Received status bytes: " + Array.from(byteArray).join(", "));
 
       // Example: Check the first byte to see if the light status is on or off
       if (byteArray[0] === 0x01) {
-        insertLog("Light is ON");
+        // insertLog("Light is ON");
         updateColorBox(255, 255, 255); // Example: Set color to white when ON
       } else if (byteArray[0] === 0x00) {
-        insertLog("Light is OFF");
+        // insertLog("Light is OFF");
         updateColorBox(0, 0, 0); // Example: Set color to black when OFF
       } else {
-        insertLog("Unknown light status");
+        // insertLog("Unknown light status");
       }
     } else {
-      insertLog("Received unexpected value: " + value);
+      // insertLog("Received unexpected value: " + value);
     }
   }
 
   function write(server) {
     var onError = function (error) {
-      insertLog("Internal! " + error);
+      // insertLog("Internal! " + error);
       // server.disconnect();  // Optional: Disconnect if there's an error
     };
 
-    insertLog("> Connected:        " + server.connected);
-    insertLog("Getting Services...");
+    // insertLog("> Connected:        " + server.connected);
+    // insertLog("Getting Services...");
 
     server
       .getPrimaryService(SERVICE_UUID)
       .then((service) => {
-        insertLog("Found Service: " + service.uuid);
+        // insertLog("Found Service: " + service.uuid);
         return service.getCharacteristics();
       })
       .then((characteristics) => {
-        insertLog("Characteristics found:");
+        // insertLog("Characteristics found:");
         characteristics.forEach((characteristic) => {
-          insertLog("  " + characteristic.uuid);
+          // insertLog("  " + characteristic.uuid);
         });
 
         const writeCharacteristic = characteristics.find(
@@ -273,14 +275,14 @@ function onButtonClick(command) {
         if (!writeCharacteristic) {
           throw new Error("Write characteristic not found!");
         }
-        insertLog("Found write characteristic: " + writeCharacteristic.uuid);
+        // insertLog("Found write characteristic: " + writeCharacteristic.uuid);
 
         var bytecommand = byteToUint8Array(hexStr2Bytes(command));
-        insertLog("Sending command: " + bytecommand);
+        // insertLog("Sending command: " + bytecommand);
         return writeCharacteristic.writeValueWithoutResponse(bytecommand);
       })
       .then(() => {
-        insertLog("Command sent: " + command);
+        // insertLog("Command sent: " + command);
         return new Promise((resolve) => setTimeout(resolve, 0)); // 500 ms delay
       })
       .catch(onError);
@@ -380,7 +382,7 @@ function lightsMusicClick(inputType = "microphone") {
             // Stop any video track since we don't need it
             stream.getVideoTracks().forEach((track) => track.stop());
           } catch (err) {
-            insertLog("Failed to capture system audio. Error: " + err.message);
+            // insertLog("Failed to capture system audio. Error: " + err.message);
             throw err;
           }
         }
@@ -389,8 +391,8 @@ function lightsMusicClick(inputType = "microphone") {
         isListening = true;
         updateColorBasedOnMusic();
       } catch (error) {
-        insertLog("Error accessing audio: " + error);
-        console.error("Audio error:", error);
+        // insertLog("Error accessing audio: " + error);
+        // console.error("Audio error:", error);
       }
     }
   }
@@ -576,11 +578,11 @@ function updateCharts(bass, mid, high) {
 }
 
 function eventListener() {
-  console.log("Adding event listener...");
-  window.document.addEventListener("onadvertisementreceived", console.log);
-  window.addEventListener("storage", console.log);
-  window.addEventListener("load", console.log);
-  window.addEventListener("open", console.log);
+  // console.log("Adding event listener...");
+  // window.document.addEventListener("onadvertisementreceived", console.log);
+  // window.addEventListener("storage", console.log);
+  // window.addEventListener("load", console.log);
+  // window.addEventListener("open", console.log);
 }
 
 var variables = `var retry = false; var CHARACTERISTIC_READ_UUID = "${CHARACTERISTIC_READ_UUID}";var CHARACTERISTIC_WRITE_UUID = "${CHARACTERISTIC_WRITE_UUID}";var CHARACTERISTIC_NOTIFY_UUID = "${CHARACTERISTIC_NOTIFY_UUID}"; var SERVICE_UUID = "${SERVICE_UUID}"; var LIGHTS_ON_STRING = "${LIGHTS_ON_STRING}";var LIGHTS_OFF_STRING = "${LIGHTS_OFF_STRING}"; var testingMode = ${testingMode}; var sensitivity = ${sensitivity}; var rSensitivity = ${rSensitivity}; var gSensitivity = ${gSensitivity}; var bSensitivity = ${bSensitivity}; var colorPower = ${colorPower}; var bassCenterFreq = ${bassCenterFreq}; var bassWidth = ${bassWidth}; var midCenterFreq = ${midCenterFreq}; var midWidth = ${midWidth}; var highCenterFreq = ${highCenterFreq}; var highWidth = ${highWidth}; ${updateColorBox.toString()}; initializeChart();`;
